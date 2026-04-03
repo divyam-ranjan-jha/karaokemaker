@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+proxy-worker/node_modules/
+
+# Build output
+dist/
+proxy-worker/dist/
+
+# Environment variables
+.env.local
+.env.*.local
+
+# Wrangler / Cloudflare
+.wrangler/
+proxy-worker/.wrangler/
+
+# Editor & OS
+.DS_Store
+*.local
+.vscode/
+.idea/

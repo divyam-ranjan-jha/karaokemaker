@@ -1,0 +1,13 @@
+name = "karaokemaker-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+workers_dev = true
+
+# Rate limiting is configured in the Cloudflare dashboard:
+# 50 requests / IP / hour on the /extract route.
+# See: https://developers.cloudflare.com/waf/rate-limiting-rules/
+
+[vars]
+# Override ALLOWED_ORIGIN in production via `wrangler secret put` or dashboard env vars.
+# Keep "*" for local dev; set to "https://your-production-domain.com" before deploying.
+ALLOWED_ORIGIN = "*"

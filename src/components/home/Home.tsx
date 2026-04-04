@@ -213,7 +213,8 @@ export default function Home() {
   const setMeta = useKaraokeStore((s) => s.setMeta)
   const setLyrics = useKaraokeStore((s) => s.setLyrics)
   const setView = useKaraokeStore((s) => s.setView)
-  const storeMeta = useKaraokeStore((s) => ({ title: s.title, thumbnailUrl: s.thumbnailUrl, duration: s.duration }))
+  const metaTitle = useKaraokeStore((s) => s.title)
+  const metaThumbnailUrl = useKaraokeStore((s) => s.thumbnailUrl)
 
   // Whisper hook
   const { transcribe, cancel, isSupported } = useWhisper({
@@ -426,8 +427,8 @@ export default function Home() {
                 phase={transcribePhase}
                 progress={transcribeProgress}
                 phaseLabel={transcribeLabel}
-                title={storeMeta.title}
-                thumbnailUrl={storeMeta.thumbnailUrl}
+                title={metaTitle}
+                thumbnailUrl={metaThumbnailUrl}
                 onSkip={handleSkipTranscription}
               />
               {/* Transcription error with fallback option */}

@@ -69,12 +69,12 @@ interface InvidiousVideoResponse {
 // ---------------------------------------------------------------------------
 
 // Public instances — ordered by reliability. The worker tries each in turn.
-// Monitor https://api.invidious.io/ for up-to-date instance health.
+// Last verified: 2026-04-09. Monitor https://api.invidious.io/ for up-to-date instance health.
 const INVIDIOUS_INSTANCES = [
-  'https://invidious.nerdvpn.de',
-  'https://yt.artemislena.eu',
-  'https://invidious.privacyredirect.com',
-  'https://inv.nadeko.net',
+  'https://inv.thepixora.com',
+  'https://invidious.protokolla.fi',
+  'https://invidious.einfachzocken.eu',
+  'https://invidious.darkness.services',
 ] as const
 
 const FETCH_TIMEOUT_MS = 8_000

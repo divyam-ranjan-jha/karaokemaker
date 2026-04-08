@@ -2,13 +2,10 @@
  * Calls the KaraokeMaker Cloudflare Worker proxy to resolve a YouTube URL
  * into a temporary audio stream URL.
  *
- * The worker URL is read from VITE_WORKER_URL at build time.
- * For local dev, run `npm run dev` inside proxy-worker/ and set:
- *   VITE_WORKER_URL=http://localhost:8787
- * in a `.env.local` file at the project root.
+ * Uses the same URL rules as `extractAudio` in `./youtube` (Vite proxy on localhost).
  */
 
-const WORKER_URL = import.meta.env.VITE_WORKER_URL ?? 'http://localhost:8787'
+import { extractRequestUrl } from './youtube'
 
 // ---------------------------------------------------------------------------
 // Types — mirror the worker's response contracts
@@ -52,7 +49,7 @@ export class YouTubeExtractError extends Error {
 // ---------------------------------------------------------------------------
 
 export async function extractAudioStream(youtubeUrl: string): Promise<ExtractResponse> {
-  const endpoint = `${WORKER_URL}/extract?url=${encodeURIComponent(youtubeUrl)}`
+  const endpoint = extractRequestUrl(youtubeUrl)
 
   let res: Response
   try {

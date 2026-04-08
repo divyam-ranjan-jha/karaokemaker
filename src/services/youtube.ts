@@ -1,15 +1,26 @@
 /**
  * Thin client for the KaraokeMaker Cloudflare Worker proxy.
- * Worker runs at localhost:8787 in dev (see proxy-worker/).
- * Set VITE_WORKER_URL in .env.local to override.
+ *
+ * Default: deployed worker (works with `npm run dev` alone).
+ * For local proxy development: `cd proxy-worker && npm run dev`, then create `.env.local` with
+ *   VITE_WORKER_URL=http://localhost:8787
  */
 
-/** Used when VITE_WORKER_URL is missing from the production build (Vercel env misconfiguration). */
-const DEFAULT_PROD_WORKER = 'https://karaokemaker-proxy.divyamranjan1602.workers.dev'
+const DEFAULT_WORKER = 'https://karaokemaker-proxy.divyamranjan1602.workers.dev'
 
-const WORKER_BASE =
-  import.meta.env.VITE_WORKER_URL ??
-  (import.meta.env.DEV ? 'http://localhost:8787' : DEFAULT_PROD_WORKER)
+/** Where the browser should GET /extract (avoids CORS: worker only allows the Vercel origin). */
+export function extractRequestUrl(youtubeUrl: string): string {
+  const qs = `url=${encodeURIComponent(youtubeUrl)}`
+  const env = import.meta.env.VITE_WORKER_URL
+  if (env) return `${env}/extract?${qs}`
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname
+    if (h === 'localhost' || h === '127.0.0.1') {
+      return `/km-proxy/extract?${qs}`
+    }
+  }
+  return `${DEFAULT_WORKER}/extract?${qs}`
+}
 
 export interface AudioMeta {
   streamUrl: string
@@ -31,27 +42,26 @@ export class ExtractionError extends Error {
 }
 
 export async function extractAudio(url: string): Promise<AudioMeta> {
-  const endpoint = `${WORKER_BASE}/extract?url=${encodeURIComponent(url)}`
+  const endpoint = extractRequestUrl(url)
 
   // #region agent log
   try {
-    const workerHost = (() => {
-      try {
-        return new URL(WORKER_BASE).host
-      } catch {
-        return 'invalid-worker-url'
-      }
-    })()
+    const kind =
+      import.meta.env.VITE_WORKER_URL != null && import.meta.env.VITE_WORKER_URL !== ''
+        ? 'env'
+        : endpoint.startsWith('/km-proxy')
+          ? 'vite-proxy'
+          : 'direct-worker'
     fetch('http://127.0.0.1:7816/ingest/6c4612d3-9f5b-4249-ba5b-4d305acc6e89', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'f57d5f' },
       body: JSON.stringify({
         sessionId: 'f57d5f',
-        runId: 'pre-fix',
-        hypothesisId: 'H1',
+        runId: 'cors-proxy',
+        hypothesisId: 'CORS',
         location: 'youtube.ts:extractAudio:start',
         message: 'extractAudio start',
-        data: { workerHost, dev: import.meta.env.DEV, hasViteWorkerUrl: !!import.meta.env.VITE_WORKER_URL },
+        data: { kind, dev: import.meta.env.DEV, endpointPrefix: endpoint.slice(0, 48) },
         timestamp: Date.now(),
       }),
     }).catch(() => {})

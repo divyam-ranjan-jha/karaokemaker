@@ -2,6 +2,18 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+/** Deployed worker — browser cannot call it directly from localhost (worker CORS is Vercel-only). */
+const WORKER_ORIGIN = 'https://karaokemaker-proxy.divyamranjan1602.workers.dev'
+
+const workerExtractProxy = {
+  '/km-proxy': {
+    target: WORKER_ORIGIN,
+    changeOrigin: true,
+    secure: true,
+    rewrite: (p: string) => p.replace(/^\/km-proxy/, ''),
+  },
+}
+
 export default defineConfig({
   plugins: [react()],
 
@@ -31,13 +43,15 @@ export default defineConfig({
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',
     },
+    proxy: workerExtractProxy,
   },
 
-  // Same headers needed when previewing the production build locally.
+  // Same headers + proxy when previewing the production build locally.
   preview: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',
     },
+    proxy: workerExtractProxy,
   },
 })

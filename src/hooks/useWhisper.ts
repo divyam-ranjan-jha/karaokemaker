@@ -121,7 +121,7 @@ export function useWhisper(callbacks: WhisperCallbacks) {
         { type: 'TRANSCRIBE_PCM', pcmBuffer },
         [pcmBuffer], // transfer ownership
       )
-    } catch (err) {
+    } catch {
       callbacksRef.current.onError?.(
         'Could not decode audio for transcription. You can paste your own lyrics instead.',
         false,

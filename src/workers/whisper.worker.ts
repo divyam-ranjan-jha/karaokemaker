@@ -141,7 +141,7 @@ self.onmessage = async (event: MessageEvent<WorkerCommand>) => {
 
   try {
     if (cmd.type === 'TRANSCRIBE_URL') {
-      let audioInput: string | Float32Array = cmd.streamUrl
+      const audioInput: string | Float32Array = cmd.streamUrl
 
       try {
         // Try transcribing from the URL directly.

@@ -12,7 +12,7 @@
  */
 
 import {
-  useState, useEffect, useRef, useCallback, memo,
+  useState, useEffect, useLayoutEffect, useRef, useCallback, memo, startTransition,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
 import {
@@ -136,7 +136,9 @@ const LineRow = memo(function LineRow({
   // (e.g. undo/redo, paste) — but not while the user is actively typing
   const hasFocusRef = useRef(false)
   useEffect(() => {
-    if (!hasFocusRef.current) setLocalText(line.text)
+    if (!hasFocusRef.current) {
+      startTransition(() => setLocalText(line.text))
+    }
   }, [line.text])
 
   return (
@@ -260,8 +262,13 @@ export default function LyricsEditor() {
   const listRef = useRef<HTMLDivElement>(null)
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Keep inputRefs array sized correctly
-  inputRefs.current = Array(lines.length).fill(null)
+  // Keep inputRefs array sized correctly; preserve overlapping slots when length changes
+  useLayoutEffect(() => {
+    const prev = inputRefs.current
+    const next = Array(lines.length).fill(null) as (HTMLInputElement | null)[]
+    for (let i = 0; i < Math.min(prev.length, next.length); i++) next[i] = prev[i]
+    inputRefs.current = next
+  }, [lines.length])
 
   // ---------------------------------------------------------------------------
   // Audio initialisation

@@ -249,9 +249,9 @@ export default {
     }
 
     // Try each Invidious instance in order
-    let lastCode: ErrorCode = 'EXTRACTION_FAILED'
+    const lastCode: ErrorCode = 'EXTRACTION_FAILED'
     let lastMessage = 'Could not extract audio stream from YouTube'
-    let lastRetryable = true
+    const lastRetryable = true
 
     for (const instance of INVIDIOUS_INSTANCES) {
       try {

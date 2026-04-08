@@ -34,14 +34,17 @@ export default defineConfig({
     exclude: ['@xenova/transformers'],
   },
 
-  // COOP + COEP headers are required for SharedArrayBuffer, which ONNX Runtime
-  // needs for multi-threaded WASM (SIMD). Without them, numThreads is forced to 1.
-  // These headers are set here for the dev server; for production add a
-  // `_headers` file (Cloudflare Pages) or configure the host accordingly.
+  // COOP + COEP headers.
+  //
+  // We use `credentialless` (not `require-corp`) so that cross-origin resources
+  // (Invidious thumbnails, HuggingFace model/WASM files) load without needing a
+  // `Cross-Origin-Resource-Policy` header on the remote server.
+  // `credentialless` still satisfies `crossOriginIsolated` in Chrome 96+ / Firefox 119+,
+  // so SharedArrayBuffer is available if we ever enable multi-threaded ONNX.
   server: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
     },
     proxy: workerExtractProxy,
   },
@@ -50,7 +53,7 @@ export default defineConfig({
   preview: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
     },
     proxy: workerExtractProxy,
   },

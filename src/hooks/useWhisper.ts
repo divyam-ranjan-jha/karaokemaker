@@ -12,6 +12,11 @@ import { useRef, useEffect, useCallback } from 'react'
 import type { WorkerMessage } from '@/workers/whisper.types'
 import type { LyricLine } from '@/lib/lyrics'
 
+// Vite's `?worker` suffix forces bundling even in dev mode,
+// which resolves @xenova/transformers' circular ort-web init.
+import WhisperWorkerClass from '@/workers/whisper.worker.ts?worker'
+import { proxyStreamUrl } from '@/services/youtube'
+
 // ---------------------------------------------------------------------------
 // Callbacks
 // ---------------------------------------------------------------------------
@@ -46,10 +51,7 @@ export function useWhisper(callbacks: WhisperCallbacks) {
 
   function getOrCreateWorker(): Worker {
     if (!workerRef.current) {
-      workerRef.current = new Worker(
-        new URL('../workers/whisper.worker.ts', import.meta.url),
-        { type: 'module' },
-      )
+      workerRef.current = new WhisperWorkerClass()
 
       workerRef.current.onmessage = (event: MessageEvent<WorkerMessage>) => {
         const msg = event.data
@@ -97,12 +99,41 @@ export function useWhisper(callbacks: WhisperCallbacks) {
     if (!pending) return
 
     try {
-      // Fetch audio on the main thread (same origin rules apply here, but the
-      // browser's audio pipeline is more permissive than fetch() for CDN streams).
-      const res = await fetch(pending.streamUrl)
+      const audioUrl = proxyStreamUrl(pending.streamUrl)
+
+      callbacksRef.current.onModelLoading?.(100, 'Downloading audio…')
+
+      const res = await fetch(audioUrl)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
-      const arrayBuffer = await res.arrayBuffer()
+      // Stream-read with progress if Content-Length is known
+      const contentLength = Number(res.headers.get('content-length') || 0)
+      let arrayBuffer: ArrayBuffer
+      if (contentLength > 0 && res.body) {
+        const reader = res.body.getReader()
+        const chunks: Uint8Array[] = []
+        let received = 0
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          chunks.push(value)
+          received += value.length
+          const pct = Math.round((received / contentLength) * 100)
+          const mb = (received / 1_048_576).toFixed(1)
+          const totalMb = (contentLength / 1_048_576).toFixed(1)
+          callbacksRef.current.onModelLoading?.(100, `Downloading audio (${mb} / ${totalMb} MB)`)
+          // Fake overall progress: model done (50%) + audio download (next 10%)
+          callbacksRef.current.onTranscribing?.(pct * 0.2) // 0-20% of transcription phase
+        }
+        const full = new Uint8Array(received)
+        let offset = 0
+        for (const chunk of chunks) { full.set(chunk, offset); offset += chunk.length }
+        arrayBuffer = full.buffer as ArrayBuffer
+      } else {
+        arrayBuffer = await res.arrayBuffer()
+      }
+
+      callbacksRef.current.onModelLoading?.(100, 'Decoding audio…')
 
       // Decode to 16 kHz mono Float32Array (Whisper's required input format).
       const audioCtx = new AudioContext({ sampleRate: 16_000 })
@@ -141,8 +172,14 @@ export function useWhisper(callbacks: WhisperCallbacks) {
       }
 
       pendingUrlRef.current = { streamUrl, durationSeconds }
+
+      // Start model download in the worker immediately (runs in parallel with audio fetch)
       const worker = getOrCreateWorker()
-      worker.postMessage({ type: 'TRANSCRIBE_URL', streamUrl, durationSeconds })
+      worker.postMessage({ type: 'LOAD_MODEL' })
+
+      // Decode audio on the main thread (workers lack AudioContext)
+      // then send raw PCM to the worker. Runs in parallel with model download.
+      handlePcmFallback()
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [isSupported],

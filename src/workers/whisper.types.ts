@@ -27,7 +27,12 @@ export interface TranscribePcmCmd {
   pcmBuffer: ArrayBuffer
 }
 
-export type WorkerCommand = TranscribeUrlCmd | TranscribePcmCmd
+/** Pre-load the Whisper model without transcribing anything yet. */
+export interface LoadModelCmd {
+  type: 'LOAD_MODEL'
+}
+
+export type WorkerCommand = LoadModelCmd | TranscribeUrlCmd | TranscribePcmCmd
 
 // ---------------------------------------------------------------------------
 // Worker → Main

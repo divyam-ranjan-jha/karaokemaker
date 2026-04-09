@@ -1,6 +1,8 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import https from 'node:https'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 
 /** Deployed worker — browser cannot call it directly from localhost (worker CORS is Vercel-only). */
 const WORKER_ORIGIN = 'https://karaokemaker-proxy.divyamranjan1602.workers.dev'
@@ -14,8 +16,50 @@ const workerExtractProxy = {
   },
 }
 
+/**
+ * Dev-only: streams /audio-stream?url=<encoded> → YouTube CDN,
+ * so the browser avoids CORS when fetching audio for PCM decode.
+ */
+function handleAudioProxy(req: IncomingMessage, res: ServerResponse) {
+  const u = new URL(req.url ?? '/', 'http://localhost')
+  const target = u.searchParams.get('url')
+  if (!target) { res.writeHead(400); res.end('Missing url param'); return }
+
+  const follow = (url: string, hops = 0) => {
+    if (hops > 5) { res.writeHead(502); res.end('Too many redirects'); return }
+    https.get(url, (upstream) => {
+      if ((upstream.statusCode === 301 || upstream.statusCode === 302) && upstream.headers.location) {
+        upstream.resume()
+        follow(upstream.headers.location, hops + 1)
+        return
+      }
+      res.writeHead(upstream.statusCode ?? 502, {
+        'Content-Type': upstream.headers['content-type'] ?? 'audio/mp4',
+        'Content-Length': upstream.headers['content-length'] ?? '',
+        'Access-Control-Allow-Origin': '*',
+      })
+      upstream.pipe(res)
+    }).on('error', () => {
+      res.writeHead(502); res.end('Upstream fetch failed')
+    })
+  }
+  follow(target)
+}
+
+function audioStreamProxy(): Plugin {
+  return {
+    name: 'audio-stream-proxy',
+    configureServer(server) {
+      server.middlewares.use('/audio-stream', (req, res) => handleAudioProxy(req, res))
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use('/audio-stream', (req, res) => handleAudioProxy(req, res))
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), audioStreamProxy()],
 
   resolve: {
     alias: {
@@ -23,15 +67,16 @@ export default defineConfig({
     },
   },
 
-  // Bundle web workers as ES modules (required for @xenova/transformers).
+  // ES module workers.
   worker: {
     format: 'es',
   },
 
-  // Prevent Vite from pre-bundling @xenova/transformers.
-  // It uses dynamic WASM imports that must be left as-is for the runtime to resolve.
+  // Pre-bundle @xenova/transformers + onnxruntime-web so that Vite's dev server
+  // resolves the circular onnxruntime-common init inside ort-web.min.js.
+  // Without this, the raw webpack bundle hits registerBackend on an uninitialised module.
   optimizeDeps: {
-    exclude: ['@xenova/transformers'],
+    include: ['@xenova/transformers', 'onnxruntime-web'],
   },
 
   // COOP + COEP headers.

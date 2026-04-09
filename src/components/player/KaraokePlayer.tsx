@@ -20,6 +20,7 @@ import {
   Pencil, Share2, Mic2, Check, AlertTriangle,
 } from 'lucide-react'
 import { useKaraokeStore } from '@/store/useKaraokeStore'
+import { proxyStreamUrl } from '@/services/youtube'
 import {
   findActiveLineIdx, findActiveWordIdx,
 } from '@/lib/lyrics'
@@ -490,7 +491,7 @@ export default function KaraokePlayer() {
       {/* Hidden audio */}
       <audio
         ref={audioRef}
-        src={streamUrl}
+        src={proxyStreamUrl(streamUrl)}
         preload="auto"
         crossOrigin="anonymous"
         className="hidden"

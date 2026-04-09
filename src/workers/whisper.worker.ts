@@ -20,11 +20,13 @@ import type { LyricLine, TimedWord } from '@/lib/lyrics'
 env.allowLocalModels = false
 env.useBrowserCache = true
 
-// Single-threaded WASM avoids the need for SharedArrayBuffer
-// (which requires COOP/COEP headers). Slightly slower but universally supported.
-// Remove this line if you add COOP/COEP headers to the server — then ONNX can
-// use SIMD + multi-threaded WASM, cutting transcription time ~3×.
+// Single-threaded WASM — no SharedArrayBuffer needed.
 env.backends.onnx.wasm.numThreads = 1
+
+// Point onnxruntime-web to CDN WASM binaries.
+// Required because Rollup/Vite bundles the JS but not the .wasm assets,
+// so the auto-detected relative path would be wrong.
+env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/'
 
 const MODEL_ID = 'Xenova/whisper-tiny'
 
@@ -140,6 +142,11 @@ self.onmessage = async (event: MessageEvent<WorkerCommand>) => {
   const cmd = event.data
 
   try {
+    if (cmd.type === 'LOAD_MODEL') {
+      await loadModel()
+      return
+    }
+
     if (cmd.type === 'TRANSCRIBE_URL') {
       const audioInput: string | Float32Array = cmd.streamUrl
 

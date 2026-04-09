@@ -285,22 +285,6 @@ export default function Home() {
       // Step 1: resolve audio stream via Cloudflare Worker
       const meta = await extractAudio(trimmed)
 
-      // #region agent log
-      fetch('http://127.0.0.1:7816/ingest/6c4612d3-9f5b-4249-ba5b-4d305acc6e89', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'f57d5f' },
-        body: JSON.stringify({
-          sessionId: 'f57d5f',
-          runId: 'pre-fix',
-          hypothesisId: 'H5',
-          location: 'Home.tsx:handleSubmit:afterExtract',
-          message: 'extractAudio resolved',
-          data: { hasStream: !!meta.streamUrl },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {})
-      // #endregion
-
       setMeta({
         youtubeUrl: trimmed,
         streamUrl: meta.streamUrl,
@@ -323,25 +307,6 @@ export default function Home() {
       setTranscribeLabel('Preparing…')
       transcribe(meta.streamUrl, meta.durationSeconds)
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7816/ingest/6c4612d3-9f5b-4249-ba5b-4d305acc6e89', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'f57d5f' },
-        body: JSON.stringify({
-          sessionId: 'f57d5f',
-          runId: 'pre-fix',
-          hypothesisId: 'H2',
-          location: 'Home.tsx:handleSubmit:catch',
-          message: 'handleSubmit error',
-          data: {
-            name: err instanceof Error ? err.name : typeof err,
-            isExtraction: err instanceof ExtractionError,
-            code: err instanceof ExtractionError ? err.code : undefined,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {})
-      // #endregion
       if (err instanceof ExtractionError) {
         toast.error(extractionToastMessage(err))
         setFieldError(err.message)

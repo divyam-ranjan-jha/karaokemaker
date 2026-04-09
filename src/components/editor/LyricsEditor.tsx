@@ -20,6 +20,7 @@ import {
   Plus, Trash2, Play, Pause, Mic2, Music2, ChevronRight,
 } from 'lucide-react'
 import { useKaraokeStore } from '@/store/useKaraokeStore'
+import { proxyStreamUrl } from '@/services/youtube'
 import type { LyricLine } from '@/lib/lyrics'
 
 // ---------------------------------------------------------------------------
@@ -506,7 +507,7 @@ export default function LyricsEditor() {
   return (
     <div className="flex flex-col h-screen bg-[#050508] text-white overflow-hidden">
       {/* Hidden audio for re-sync */}
-      <audio ref={audioRef} src={streamUrl} preload="auto" crossOrigin="anonymous" className="hidden" />
+      <audio ref={audioRef} src={proxyStreamUrl(streamUrl)} preload="auto" crossOrigin="anonymous" className="hidden" />
 
       {/* ── Header ── */}
       <header className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-white/5 bg-[#050508]/90 backdrop-blur-md z-10">
